@@ -73,7 +73,7 @@ def download_images(urls, progress_bar):
         progress_bar.progress((i + 1) / total_images)
     return images
 
-
+@st.experimental_fragment
 def main():
     st.title("Yodayo Image Downloader")
 
