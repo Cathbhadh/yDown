@@ -13,7 +13,7 @@ LIMIT = 500
 @st.cache_data(ttl=3200)
 def fetch_posts(user_id, limit, offset):
     url = BASE_URL.format(user_id=user_id)
-    params = {"offset": offset, "limit": limit, "width": 2688, "include_nsfw": "true"}
+    params = {"offset": offset, "limit": limit, "width": 600, "include_nsfw": "true"}
     response = requests.get(url, params=params)
     response.raise_for_status()
     return response.json()
@@ -37,14 +37,6 @@ def clean_url(url):
             url = url[: url.rfind("_")] + ".png"
         else:
             url = url[: url.rfind("_")]
-
-    # Check if URL contains resolution parameters
-    parsed_url = urlparse(url)
-    query_params = parse_qs(parsed_url.query)
-    if "width" in query_params or "height" in query_params:
-        cleaned_query = "&".join([f"{k}={v[0]}" for k, v in query_params.items() if k not in ["width", "height"]])
-        url = urlunparse((parsed_url.scheme, parsed_url.netloc, parsed_url.path, parsed_url.params, cleaned_query, parsed_url.fragment))
-
     if not url.endswith(".jpg") and not url.endswith(".png"):
         if ".jpg" in url:
             url += ".jpg"
@@ -73,7 +65,27 @@ def download_images(urls, progress_bar):
         progress_bar.progress((i + 1) / total_images)
     return images
 
-@st.experimental_fragment
+@st.experimental_fragment(run_every=None)
+def download_zip(urls_to_download, filtered_posts, start_time):
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+        images = download_images(urls_to_download, st.progress(0))
+        for filename, content in images:
+            zip_file.writestr(filename, content)
+
+    zip_buffer.seek(0)
+    end_time = time.time()
+    total_time = end_time - start_time
+    st.write(f"Total run time: {total_time:.2f} seconds")
+
+    st.download_button(
+        label="Download ZIP",
+        data=zip_buffer,
+        file_name="images.zip",
+        mime="application/zip",
+    )
+
+
 def main():
     st.title("Yodayo Image Downloader")
 
@@ -116,24 +128,7 @@ def main():
                 if not urls_to_download:
                     st.error("No images found for the specified date range.")
                 else:
-                    images = download_images(urls_to_download, progress_bar)
-
-                    zip_buffer = BytesIO()
-                    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
-                        for filename, content in images:
-                            zip_file.writestr(filename, content)
-
-                    zip_buffer.seek(0)
-                    end_time = time.time()
-                    total_time = end_time - start_time
-                    st.write(f"Total run time: {total_time:.2f} seconds")
-
-                    st.download_button(
-                        label="Download ZIP",
-                        data=zip_buffer,
-                        file_name="images.zip",
-                        mime="application/zip",
-                    )
+                    download_zip(urls_to_download, filtered_posts, start_time)
         else:
             st.error("Please provide all required inputs.")
 
