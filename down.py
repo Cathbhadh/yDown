@@ -13,7 +13,7 @@ LIMIT = 500
 
 def fetch_posts(user_id, limit, offset):
     url = BASE_URL.format(user_id=user_id)
-    params = {"offset": offset, "limit": limit, "width": 100, "include_nsfw": "true"}
+    params = {"offset": offset, "limit": limit, "width": 600, "include_nsfw": "true"}
     response = requests.get(url, params=params)
     response.raise_for_status()
     return response.json()
@@ -44,7 +44,7 @@ def clean_url(url):
             url += ".png"
 
     try:
-        response = requests.head(url, timeout=0.2)
+        response = requests.head(url, timeout=0.5)
         response.raise_for_status()
     except requests.exceptions.RequestException:
         return original_url
