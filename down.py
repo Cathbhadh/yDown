@@ -35,11 +35,17 @@ def filter_posts_by_date(posts, start_date, end_date):
 def clean_url(url):
     parsed_url = urlparse(url)
     query = parse_qs(parsed_url.query)
+    # Remove width and height parameters
     query.pop('width', None)
     query.pop('height', None)
+    # Reconstruct the URL without width and height parameters
     clean_query = '&'.join([f"{key}={value[0]}" for key, value in query.items()])
     clean_url = urlunparse(parsed_url._replace(query=clean_query))
+    # If there are no query parameters left, remove the question mark
+    if not clean_query:
+        clean_url = clean_url.replace('?', '')
     return clean_url
+
 
 def download_images(urls):
     images = []
