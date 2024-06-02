@@ -13,7 +13,7 @@ LIMIT = 500
 @st.cache_data(ttl=3200)
 def fetch_posts(user_id, limit, offset):
     url = BASE_URL.format(user_id=user_id)
-    params = {"offset": offset, "limit": limit, "include_nsfw": "true"}
+    params = {"offset": offset, "limit": limit, "width": 600, "include_nsfw": "true"}
     response = requests.get(url, params=params)
     response.raise_for_status()
     return response.json()
@@ -32,16 +32,19 @@ def filter_posts_by_date(posts, start_date, end_date):
 def clean_url(url):
     original_url = url
     parsed_url = urlparse(url)
-    path = parsed_url.path
-    file_extension = ".jpg"
     
-    if path.endswith(".png"):
-        file_extension = ".png"
+    # Strip any parameters in the URL
+    clean_path = parsed_url.path.split("_")[0]
+    
+    # Ensure the correct file extension
+    if clean_path.endswith('.png'):
+        file_extension = '.png'
+    else:
+        file_extension = '.jpg'
+    
+    clean_url = urlunparse(parsed_url._replace(path=clean_path, query='')) + file_extension
 
-    path = path.split("_")[0]  # Strip any trailing parameters after '_'
-
-    clean_url = urlunparse(parsed_url._replace(path=path, query='')) + file_extension
-
+    # Check if the cleaned URL is valid
     try:
         response = requests.head(clean_url, timeout=0.2)
         response.raise_for_status()
