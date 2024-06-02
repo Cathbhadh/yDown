@@ -94,24 +94,27 @@ def main():
                     clean_media_url = clean_url(media["url"])
                     urls_to_download.append(clean_media_url)
 
-            images = download_images(urls_to_download, progress_bar)
+            if not urls_to_download:
+                st.error("No images found for the specified date range.")
+            else:
+                images = download_images(urls_to_download, progress_bar)
 
-            zip_buffer = BytesIO()
-            with zipfile.ZipFile(zip_buffer, "w") as zip_file:
-                for filename, content in images:
-                    zip_file.writestr(filename, content)
+                zip_buffer = BytesIO()
+                with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+                    for filename, content in images:
+                        zip_file.writestr(filename, content)
 
-            zip_buffer.seek(0)
-            end_time = time.time()
-            total_time = end_time - start_time
-            st.write(f"Total run time: {total_time:.2f} seconds")
+                zip_buffer.seek(0)
+                end_time = time.time()
+                total_time = end_time - start_time
+                st.write(f"Total run time: {total_time:.2f} seconds")
 
-            st.download_button(
-                label="Download ZIP",
-                data=zip_buffer,
-                file_name="images.zip",
-                mime="application/zip",
-            )
+                st.download_button(
+                    label="Download ZIP",
+                    data=zip_buffer,
+                    file_name="images.zip",
+                    mime="application/zip",
+                )
         else:
             st.error("Please provide all required inputs.")
 
