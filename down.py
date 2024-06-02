@@ -50,8 +50,7 @@ def clean_url(url):
 
     return url
 
-@st.cache_data
-def download_images(urls, progress_bar):
+def download_images(urls, _progress_bar):
     images = []
     total_images = len(urls)
     for i, url in enumerate(urls):
@@ -61,7 +60,7 @@ def download_images(urls, progress_bar):
         if not filename.endswith(".jpg"):
             filename += ".jpg"
         images.append((filename, response.content))
-        progress_bar.progress((i + 1) / total_images)
+        _progress_bar.progress((i + 1) / total_images)
     return images
 
 @st.cache_resource
