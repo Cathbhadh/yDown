@@ -2,7 +2,6 @@ import streamlit as st
 import requests
 from datetime import datetime
 import zipfile
-import os
 from io import BytesIO
 import time
 
@@ -29,22 +28,26 @@ def filter_posts_by_date(posts, start_date, end_date):
 
 @st.cache_data(ttl=3200)
 def clean_url(url):
-    original_url = url
-    if "_" in url:
-        if url.endswith(".png"):
-            url = url[:url.rfind("_")] + ".png"
-        elif url.endswith(".jpg"):
-            url = url[:url.rfind("_")] + ".jpg"
+    parsed_url = urlparse(url)
+    path = parsed_url.path
+    if "_" in path:
+        path = path[:path.rfind("_")]
+        if ".png" in path or ".jpg" in path:
+            path = path[:path.rfind(".")] + path[path.rfind("."):]
         else:
-            url = url[:url.rfind("_")]
-    
-    try:
-        response = requests.head(url, timeout=0.2)
-        response.raise_for_status()
-    except requests.exceptions.RequestException:
-        return original_url
+            path += ".jpg"  # Default to .jpg if no extension is found
+    else:
+        if not path.endswith(".jpg") and not path.endswith(".png"):
+            path += ".jpg"  # Default to .jpg if no extension is found
 
-    return url
+    cleaned_url = urlunparse(parsed_url._replace(path=path, query=""))
+
+    try:
+        response = requests.head(cleaned_url, timeout=0.2)
+        response.raise_for_status()
+        return cleaned_url
+    except requests.exceptions.RequestException:
+        return url
 
 def download_images(urls, progress_bar):
     images = []
@@ -124,3 +127,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
