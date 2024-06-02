@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-from urllib.parse import urlparse, urlunparse, parse_qs
 from datetime import datetime
 import zipfile
 from io import BytesIO
@@ -8,14 +7,14 @@ from io import BytesIO
 BASE_URL = "https://api.yodayo.com/v1/users/{user_id}/posts"
 LIMIT = 500
 
-
+# Streamlit cache to cache fetched posts to save on API calls
+@st.cache_data(ttl=3200)
 def fetch_posts(user_id, limit, offset):
     url = BASE_URL.format(user_id=user_id)
-    params = {"offset": offset, "limit": limit, "width": 2688, "include_nsfw": "true"}
+    params = {"offset": offset, "limit": limit, "width": 600, "include_nsfw": "true"}
     response = requests.get(url, params=params)
     response.raise_for_status()
     return response.json()
-
 
 def filter_posts_by_date(posts, start_date, end_date):
     start_date = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
@@ -27,7 +26,7 @@ def filter_posts_by_date(posts, start_date, end_date):
             filtered_posts.append(post)
     return filtered_posts
 
-
+@st.cache_data(ttl=3200)
 def clean_url(url):
     original_url = url
     if "_" in url:
@@ -49,10 +48,8 @@ def clean_url(url):
 
     return url
 
-
-def stream_images_to_zip(urls):
-    zip_buffer = BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+def stream_images_to_zip(urls, zip_filename):
+    with zipfile.ZipFile(zip_filename, "w", zipfile.ZIP_DEFLATED) as zip_file:
         for url in urls:
             response = requests.get(url, stream=True)
             response.raise_for_status()
@@ -62,9 +59,6 @@ def stream_images_to_zip(urls):
             with zip_file.open(filename, 'w') as file:
                 for chunk in response.iter_content(chunk_size=8192):
                     file.write(chunk)
-    zip_buffer.seek(0)
-    return zip_buffer
-
 
 def main():
     st.title("Yodayo Image Downloader")
@@ -106,16 +100,18 @@ def main():
                 if not urls_to_download:
                     st.error("No images found for the specified date range.")
                 else:
-                    zip_buffer = stream_images_to_zip(urls_to_download)
-                    st.download_button(
-                        label="Download ZIP",
-                        data=zip_buffer,
-                        file_name="images.zip",
-                        mime="application/zip",
-                    )
+                    zip_filename = "/tmp/images.zip"
+                    stream_images_to_zip(urls_to_download, zip_filename)
+
+                    with open(zip_filename, "rb") as zip_file:
+                        st.download_button(
+                            label="Download ZIP",
+                            data=zip_file,
+                            file_name="images.zip",
+                            mime="application/zip",
+                        )
         else:
             st.error("Please provide all required inputs.")
-
 
 if __name__ == "__main__":
     main()
