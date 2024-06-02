@@ -10,13 +10,14 @@ import time
 BASE_URL = "https://api.yodayo.com/v1/users/{user_id}/posts"
 LIMIT = 500
 
-@st.cache_data
+
 def fetch_posts(user_id, limit, offset):
     url = BASE_URL.format(user_id=user_id)
     params = {"offset": offset, "limit": limit, "width": 600, "include_nsfw": "true"}
     response = requests.get(url, params=params)
     response.raise_for_status()
     return response.json()
+
 
 def filter_posts_by_date(posts, start_date, end_date):
     start_date = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
@@ -28,7 +29,7 @@ def filter_posts_by_date(posts, start_date, end_date):
             filtered_posts.append(post)
     return filtered_posts
 
-@st.cache_data
+
 def clean_url(url):
     original_url = url
     if "_" in url:
@@ -50,7 +51,8 @@ def clean_url(url):
 
     return url
 
-def download_images(urls, _progress_bar):
+
+def download_images(urls, progress_bar):
     images = []
     total_images = len(urls)
     for i, url in enumerate(urls):
@@ -60,17 +62,9 @@ def download_images(urls, _progress_bar):
         if not filename.endswith(".jpg"):
             filename += ".jpg"
         images.append((filename, response.content))
-        _progress_bar.progress((i + 1) / total_images)
+        progress_bar.progress((i + 1) / total_images)
     return images
 
-@st.cache_resource
-def create_zip(images):
-    zip_buffer = BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
-        for filename, content in images:
-            zip_file.writestr(filename, content)
-    zip_buffer.seek(0)
-    return zip_buffer
 
 def main():
     st.title("Yodayo Image Downloader")
@@ -85,7 +79,6 @@ def main():
 
     if st.button("Download Images"):
         if user_id and start_date and end_date:
-            # Convert input dates to datetime objects
             start_date_obj = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
             end_date_obj = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
 
@@ -117,23 +110,25 @@ def main():
                 else:
                     images = download_images(urls_to_download, progress_bar)
 
-                    zip_buffer = create_zip(images)
+                    zip_buffer = BytesIO()
+                    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+                        for filename, content in images:
+                            zip_file.writestr(filename, content)
+
+                    zip_buffer.seek(0)
                     end_time = time.time()
                     total_time = end_time - start_time
                     st.write(f"Total run time: {total_time:.2f} seconds")
 
-                    st.session_state['zip_buffer'] = zip_buffer
-                    st.session_state['zip_ready'] = True
+                    st.download_button(
+                        label="Download ZIP",
+                        data=zip_buffer,
+                        file_name="images.zip",
+                        mime="application/zip",
+                    )
         else:
             st.error("Please provide all required inputs.")
 
-    if 'zip_ready' in st.session_state and st.session_state['zip_ready']:
-        st.download_button(
-            label="Download ZIP",
-            data=st.session_state['zip_buffer'],
-            file_name="images.zip",
-            mime="application/zip",
-        )
 
 if __name__ == "__main__":
     main()
