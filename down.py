@@ -44,7 +44,7 @@ def clean_url(url):
             url += ".png"
 
     try:
-        response = requests.head(url, timeout=0.2)
+        response = requests.head(url, timeout=1)
         response.raise_for_status()
     except requests.exceptions.RequestException:
         return original_url
