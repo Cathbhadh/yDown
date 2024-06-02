@@ -13,7 +13,7 @@ LIMIT = 500
 @st.cache_data(ttl=3200)
 def fetch_posts(user_id, limit, offset):
     url = BASE_URL.format(user_id=user_id)
-    params = {"offset": offset, "limit": limit, "include_nsfw": "true"}
+    params = {"offset": offset, "limit": limit, "width": 2688, "include_nsfw": "true"}
     response = requests.get(url, params=params)
     response.raise_for_status()
     return response.json()
@@ -38,22 +38,12 @@ def clean_url(url):
         else:
             url = url[: url.rfind("_")]
 
-    if "storage.googleapis.com" in url and ".png" in url:
-        parsed_url = urlparse(url)
-        stripped_url = urlunparse((parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', '', ''))
-
-        try:
-            response = requests.head(stripped_url, timeout=0.2)
-            response.raise_for_status()
-            return stripped_url
-        except requests.exceptions.RequestException:
-            try:
-                stripped_url_with_png = stripped_url + ".png"
-                response = requests.head(stripped_url_with_png, timeout=0.2)
-                response.raise_for_status()
-                return stripped_url_with_png
-            except requests.exceptions.RequestException:
-                pass
+    # Check if URL contains resolution parameters
+    parsed_url = urlparse(url)
+    query_params = parse_qs(parsed_url.query)
+    if "width" in query_params or "height" in query_params:
+        cleaned_query = "&".join([f"{k}={v[0]}" for k, v in query_params.items() if k not in ["width", "height"]])
+        url = urlunparse((parsed_url.scheme, parsed_url.netloc, parsed_url.path, parsed_url.params, cleaned_query, parsed_url.fragment))
 
     if not url.endswith(".jpg") and not url.endswith(".png"):
         if ".jpg" in url:
@@ -68,7 +58,6 @@ def clean_url(url):
         return original_url
 
     return url
-
 
 
 def download_images(urls, progress_bar):
