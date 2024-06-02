@@ -32,7 +32,7 @@ def filter_posts_by_date(posts, start_date, end_date):
     return filtered_posts
 
 def clean_url(url):
-    # Regular expression to find and remove the part after the last underscore before the file extension
+    # Regular expression to find and remove the part after the last underscore and before the file extension
     cleaned_url = re.sub(r'_[^_]+\.(jpg|png)', r'.\1', url)
     return cleaned_url
 
@@ -42,12 +42,10 @@ def download_images(urls):
         response = requests.get(url)
         response.raise_for_status()
         filename = url.split('/')[-1]
-        # Only append .jpg if it was originally a .jpg file, otherwise keep it as is
-        if not (filename.endswith('.jpg') or filename.endswith('.png')):
-            if 'jpg' in url:
-                filename += '.jpg'
-            elif 'png' in url:
-                filename += '.png'
+        # Append the file extension to the filename if not present
+        if not filename.endswith('.jpg') and not filename.endswith('.png'):
+            extension = url.split('.')[-1]
+            filename += f'.{extension}'
         images.append((filename, response.content))
     return images
 
