@@ -46,7 +46,7 @@ def clean_url(url):
 
     # Check if the cleaned URL exists
     try:
-        response = requests.head(url, timeout=5)
+        response = requests.head(url, timeout=0.5)
         response.raise_for_status()
     except requests.exceptions.RequestException:
         # If the cleaned URL doesn't exist, return the original URL
