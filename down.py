@@ -116,14 +116,18 @@ def main():
                     total_time = end_time - start_time
                     st.write(f"Total run time: {total_time:.2f} seconds")
 
-                    st.download_button(
-                        label="Download ZIP",
-                        data=zip_buffer,
-                        file_name="images.zip",
-                        mime="application/zip",
-                    )
+                    st.session_state['zip_buffer'] = zip_buffer
+                    st.session_state['zip_ready'] = True
         else:
             st.error("Please provide all required inputs.")
+
+    if 'zip_ready' in st.session_state and st.session_state['zip_ready']:
+        st.download_button(
+            label="Download ZIP",
+            data=st.session_state['zip_buffer'],
+            file_name="images.zip",
+            mime="application/zip",
+        )
 
 if __name__ == "__main__":
     main()
