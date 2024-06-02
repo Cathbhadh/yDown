@@ -32,6 +32,7 @@ def filter_posts_by_date(posts, start_date, end_date):
     return filtered_posts
 
 def clean_url(url):
+    original_url = url
     if "_" in url:
         if ".png" in url:
             url = url[:url.rfind('_')] + ".png"
@@ -42,6 +43,15 @@ def clean_url(url):
             url += '.jpg'
         elif ".png" in url:
             url += '.png'
+
+    # Check if the cleaned URL exists
+    try:
+        response = requests.head(url, timeout=5)
+        response.raise_for_status()
+    except requests.exceptions.RequestException:
+        # If the cleaned URL doesn't exist, return the original URL
+        return original_url
+
     return url
 
 def download_images(urls):
