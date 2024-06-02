@@ -5,10 +5,10 @@ from datetime import datetime
 import zipfile
 import os
 from io import BytesIO
+import time
 
 BASE_URL = "https://api.yodayo.com/v1/users/{user_id}/posts"
 LIMIT = 500
-
 
 def fetch_posts(user_id, limit, offset):
     url = BASE_URL.format(user_id=user_id)
@@ -16,7 +16,6 @@ def fetch_posts(user_id, limit, offset):
     response = requests.get(url, params=params)
     response.raise_for_status()
     return response.json()
-
 
 def filter_posts_by_date(posts, start_date, end_date):
     start_date = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
@@ -27,7 +26,6 @@ def filter_posts_by_date(posts, start_date, end_date):
         if start_date <= created_at <= end_date:
             filtered_posts.append(post)
     return filtered_posts
-
 
 def clean_url(url):
     original_url = url
@@ -50,7 +48,6 @@ def clean_url(url):
 
     return url
 
-
 def download_images(urls):
     images = []
     for url in urls:
@@ -61,7 +58,6 @@ def download_images(urls):
             filename += ".jpg"
         images.append((filename, response.content))
     return images
-
 
 def main():
     st.title("Yodayo Image Downloader")
@@ -76,8 +72,11 @@ def main():
 
     if st.button("Download Images"):
         if user_id and start_date and end_date:
+            start_time = time.time()
             offset = 0
             all_posts = []
+            progress_bar = st.progress(0)
+            post_count = 0
 
             while True:
                 posts = fetch_posts(user_id, LIMIT, offset)
@@ -85,6 +84,8 @@ def main():
                     break
                 all_posts.extend(posts)
                 offset += LIMIT
+                post_count += len(posts)
+                progress_bar.progress(min(offset / post_count, 1.0))
 
             filtered_posts = filter_posts_by_date(all_posts, start_date, end_date)
             urls_to_download = []
@@ -102,6 +103,10 @@ def main():
                     zip_file.writestr(filename, content)
 
             zip_buffer.seek(0)
+            end_time = time.time()
+            total_time = end_time - start_time
+            st.write(f"Total run time: {total_time:.2f} seconds")
+
             st.download_button(
                 label="Download ZIP",
                 data=zip_buffer,
@@ -110,7 +115,6 @@ def main():
             )
         else:
             st.error("Please provide all required inputs.")
-
 
 if __name__ == "__main__":
     main()
