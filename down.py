@@ -74,47 +74,54 @@ def main():
 
     if st.button("Download Images"):
         if user_id and start_date and end_date:
-            start_time = time.time()
-            offset = 0
-            all_posts = []
-            progress_bar = st.progress(0)
+            # Convert input dates to datetime objects
+            start_date_obj = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+            end_date_obj = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
 
-            while True:
-                posts = fetch_posts(user_id, LIMIT, offset)
-                if not posts:
-                    break
-                all_posts.extend(posts)
-                offset += LIMIT
-
-            filtered_posts = filter_posts_by_date(all_posts, start_date, end_date)
-            urls_to_download = []
-
-            for post in filtered_posts:
-                for media in post.get("photo_media", []):
-                    clean_media_url = clean_url(media["url"])
-                    urls_to_download.append(clean_media_url)
-
-            if not urls_to_download:
-                st.error("No images found for the specified date range.")
+            if start_date_obj > end_date_obj:
+                st.error("Start date cannot be later than end date.")
             else:
-                images = download_images(urls_to_download, progress_bar)
+                start_time = time.time()
+                offset = 0
+                all_posts = []
+                progress_bar = st.progress(0)
 
-                zip_buffer = BytesIO()
-                with zipfile.ZipFile(zip_buffer, "w") as zip_file:
-                    for filename, content in images:
-                        zip_file.writestr(filename, content)
+                while True:
+                    posts = fetch_posts(user_id, LIMIT, offset)
+                    if not posts:
+                        break
+                    all_posts.extend(posts)
+                    offset += LIMIT
 
-                zip_buffer.seek(0)
-                end_time = time.time()
-                total_time = end_time - start_time
-                st.write(f"Total run time: {total_time:.2f} seconds")
+                filtered_posts = filter_posts_by_date(all_posts, start_date, end_date)
+                urls_to_download = []
 
-                st.download_button(
-                    label="Download ZIP",
-                    data=zip_buffer,
-                    file_name="images.zip",
-                    mime="application/zip",
-                )
+                for post in filtered_posts:
+                    for media in post.get("photo_media", []):
+                        clean_media_url = clean_url(media["url"])
+                        urls_to_download.append(clean_media_url)
+
+                if not urls_to_download:
+                    st.error("No images found for the specified date range.")
+                else:
+                    images = download_images(urls_to_download, progress_bar)
+
+                    zip_buffer = BytesIO()
+                    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+                        for filename, content in images:
+                            zip_file.writestr(filename, content)
+
+                    zip_buffer.seek(0)
+                    end_time = time.time()
+                    total_time = end_time - start_time
+                    st.write(f"Total run time: {total_time:.2f} seconds")
+
+                    st.download_button(
+                        label="Download ZIP",
+                        data=zip_buffer,
+                        file_name="images.zip",
+                        mime="application/zip",
+                    )
         else:
             st.error("Please provide all required inputs.")
 
