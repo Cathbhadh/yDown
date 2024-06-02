@@ -10,14 +10,12 @@ import time
 BASE_URL = "https://api.yodayo.com/v1/users/{user_id}/posts"
 LIMIT = 500
 
-
 def fetch_posts(user_id, limit, offset):
     url = BASE_URL.format(user_id=user_id)
     params = {"offset": offset, "limit": limit, "width": 600, "include_nsfw": "true"}
     response = requests.get(url, params=params)
     response.raise_for_status()
     return response.json()
-
 
 def filter_posts_by_date(posts, start_date, end_date):
     start_date = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
@@ -28,7 +26,6 @@ def filter_posts_by_date(posts, start_date, end_date):
         if start_date <= created_at <= end_date:
             filtered_posts.append(post)
     return filtered_posts
-
 
 def clean_url(url):
     original_url = url
@@ -51,8 +48,7 @@ def clean_url(url):
 
     return url
 
-
-def download_images(urls, progress_bar):
+def download_images(urls, progress_bar, progress_step, current_progress):
     images = []
     total_images = len(urls)
     for i, url in enumerate(urls):
@@ -62,9 +58,9 @@ def download_images(urls, progress_bar):
         if not filename.endswith(".jpg"):
             filename += ".jpg"
         images.append((filename, response.content))
-        progress_bar.progress((i + 1) / total_images)
-    return images
-
+        current_progress += progress_step / total_images
+        progress_bar.progress(current_progress)
+    return images, current_progress
 
 def main():
     st.title("Yodayo Image Downloader")
@@ -89,15 +85,27 @@ def main():
                 offset = 0
                 all_posts = []
                 progress_bar = st.progress(0)
+                current_progress = 0
 
+                # Step 1: Fetching posts
+                fetch_progress_step = 0.3
                 while True:
                     posts = fetch_posts(user_id, LIMIT, offset)
                     if not posts:
                         break
                     all_posts.extend(posts)
                     offset += LIMIT
+                    current_progress += fetch_progress_step / len(all_posts)
+                    progress_bar.progress(current_progress)
 
+                # Step 2: Filtering posts
+                filter_progress_step = 0.2
                 filtered_posts = filter_posts_by_date(all_posts, start_date, end_date)
+                current_progress += filter_progress_step
+                progress_bar.progress(current_progress)
+
+                # Step 3: Cleaning URLs
+                clean_progress_step = 0.2
                 urls_to_download = []
 
                 for post in filtered_posts:
@@ -105,10 +113,15 @@ def main():
                         clean_media_url = clean_url(media["url"])
                         urls_to_download.append(clean_media_url)
 
+                current_progress += clean_progress_step
+                progress_bar.progress(current_progress)
+
+                # Step 4: Downloading images
                 if not urls_to_download:
                     st.error("No images found for the specified date range.")
                 else:
-                    images = download_images(urls_to_download, progress_bar)
+                    download_progress_step = 0.3
+                    images, current_progress = download_images(urls_to_download, progress_bar, download_progress_step, current_progress)
 
                     zip_buffer = BytesIO()
                     with zipfile.ZipFile(zip_buffer, "w") as zip_file:
@@ -128,7 +141,6 @@ def main():
                     )
         else:
             st.error("Please provide all required inputs.")
-
 
 if __name__ == "__main__":
     main()
