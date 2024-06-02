@@ -3,17 +3,15 @@ import requests
 from urllib.parse import urlparse, urlunparse, parse_qs
 from datetime import datetime
 import zipfile
-import os
 from io import BytesIO
-import time
 
 BASE_URL = "https://api.yodayo.com/v1/users/{user_id}/posts"
 LIMIT = 500
 
-@st.cache_data(ttl=3200)
+
 def fetch_posts(user_id, limit, offset):
     url = BASE_URL.format(user_id=user_id)
-    params = {"offset": offset, "limit": limit, "width": 600, "include_nsfw": "true"}
+    params = {"offset": offset, "limit": limit, "width": 2688, "include_nsfw": "true"}
     response = requests.get(url, params=params)
     response.raise_for_status()
     return response.json()
@@ -29,7 +27,7 @@ def filter_posts_by_date(posts, start_date, end_date):
             filtered_posts.append(post)
     return filtered_posts
 
-@st.cache_data(ttl=3200)
+
 def clean_url(url):
     original_url = url
     if "_" in url:
@@ -52,38 +50,20 @@ def clean_url(url):
     return url
 
 
-def download_images(urls, progress_bar):
-    images = []
-    total_images = len(urls)
-    for i, url in enumerate(urls):
-        response = requests.get(url)
-        response.raise_for_status()
-        filename = url.split("/")[-1]
-        if not filename.endswith(".jpg"):
-            filename += ".jpg"
-        images.append((filename, response.content))
-        progress_bar.progress((i + 1) / total_images)
-    return images
-
-@st.experimental_fragment(run_every=None)
-def download_zip(urls_to_download, filtered_posts, start_time):
+def stream_images_to_zip(urls):
     zip_buffer = BytesIO()
     with zipfile.ZipFile(zip_buffer, "w") as zip_file:
-        images = download_images(urls_to_download, st.progress(0))
-        for filename, content in images:
-            zip_file.writestr(filename, content)
-
+        for url in urls:
+            response = requests.get(url, stream=True)
+            response.raise_for_status()
+            filename = url.split("/")[-1]
+            if not filename.endswith(".jpg"):
+                filename += ".jpg"
+            with zip_file.open(filename, 'w') as file:
+                for chunk in response.iter_content(chunk_size=8192):
+                    file.write(chunk)
     zip_buffer.seek(0)
-    end_time = time.time()
-    total_time = end_time - start_time
-    st.write(f"Total run time: {total_time:.2f} seconds")
-
-    st.download_button(
-        label="Download ZIP",
-        data=zip_buffer,
-        file_name="images.zip",
-        mime="application/zip",
-    )
+    return zip_buffer
 
 
 def main():
@@ -105,22 +85,20 @@ def main():
             if start_date_obj > end_date_obj:
                 st.error("Start date cannot be later than end date.")
             else:
-                start_time = time.time()
                 offset = 0
                 all_posts = []
-                progress_bar = st.progress(0)
 
                 while True:
                     posts = fetch_posts(user_id, LIMIT, offset)
                     if not posts:
                         break
-                    all_posts.extend(posts)
+                    filtered_posts = filter_posts_by_date(posts, start_date, end_date)
+                    all_posts.extend(filtered_posts)
                     offset += LIMIT
 
-                filtered_posts = filter_posts_by_date(all_posts, start_date, end_date)
                 urls_to_download = []
 
-                for post in filtered_posts:
+                for post in all_posts:
                     for media in post.get("photo_media", []):
                         clean_media_url = clean_url(media["url"])
                         urls_to_download.append(clean_media_url)
@@ -128,7 +106,13 @@ def main():
                 if not urls_to_download:
                     st.error("No images found for the specified date range.")
                 else:
-                    download_zip(urls_to_download, filtered_posts, start_time)
+                    zip_buffer = stream_images_to_zip(urls_to_download)
+                    st.download_button(
+                        label="Download ZIP",
+                        data=zip_buffer,
+                        file_name="images.zip",
+                        mime="application/zip",
+                    )
         else:
             st.error("Please provide all required inputs.")
 
