@@ -5,12 +5,9 @@ from datetime import datetime
 import zipfile
 import os
 from io import BytesIO
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 BASE_URL = "https://api.yodayo.com/v1/users/{user_id}/posts"
 LIMIT = 500
-CHUNK_SIZE = 50  # Number of posts to process at a time
-MAX_WORKERS = 10  # Number of concurrent workers for image downloading
 
 
 def fetch_posts(user_id, limit, offset):
@@ -54,13 +51,16 @@ def clean_url(url):
     return url
 
 
-def download_image(url):
-    response = requests.get(url)
-    response.raise_for_status()
-    filename = url.split("/")[-1]
-    if not filename.endswith(".jpg"):
-        filename += ".jpg"
-    return filename, response.content
+def download_images(urls):
+    images = []
+    for url in urls:
+        response = requests.get(url)
+        response.raise_for_status()
+        filename = url.split("/")[-1]
+        if not filename.endswith(".jpg"):
+            filename += ".jpg"
+        images.append((filename, response.content))
+    return images
 
 
 def main():
@@ -77,29 +77,24 @@ def main():
     if st.button("Download Images"):
         if user_id and start_date and end_date:
             offset = 0
-            urls_to_download = []
+            all_posts = []
 
             while True:
                 posts = fetch_posts(user_id, LIMIT, offset)
                 if not posts:
                     break
-                filtered_posts = filter_posts_by_date(posts, start_date, end_date)
-                for post in filtered_posts:
-                    for media in post.get("photo_media", []):
-                        clean_media_url = clean_url(media["url"])
-                        urls_to_download.append(clean_media_url)
+                all_posts.extend(posts)
                 offset += LIMIT
 
-            # Use ThreadPoolExecutor to download images concurrently
-            images = []
-            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-                future_to_url = {executor.submit(download_image, url): url for url in urls_to_download}
-                for future in as_completed(future_to_url):
-                    try:
-                        filename, content = future.result()
-                        images.append((filename, content))
-                    except Exception as e:
-                        st.error(f"Error downloading image: {e}")
+            filtered_posts = filter_posts_by_date(all_posts, start_date, end_date)
+            urls_to_download = []
+
+            for post in filtered_posts:
+                for media in post.get("photo_media", []):
+                    clean_media_url = clean_url(media["url"])
+                    urls_to_download.append(clean_media_url)
+
+            images = download_images(urls_to_download)
 
             zip_buffer = BytesIO()
             with zipfile.ZipFile(zip_buffer, "w") as zip_file:
