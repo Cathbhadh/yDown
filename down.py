@@ -4,6 +4,7 @@ from datetime import datetime
 import zipfile
 from io import BytesIO
 import time
+from urllib.parse import urlparse, urlunparse
 
 BASE_URL = "https://api.yodayo.com/v1/users/{user_id}/posts"
 LIMIT = 500
