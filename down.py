@@ -33,14 +33,14 @@ def filter_posts_by_date(posts, start_date, end_date):
     return filtered_posts
 
 def clean_url(url):
+    # Remove everything after the last underscore before the extension
     if "_" in url:
         url = url[:url.rfind('_')]
-    # Append the correct file extension
-    if not url.endswith('.jpg') and not url.endswith('.png'):
-        if ".jpg" in url:
-            url += '.jpg'
-        elif ".png" in url:
-            url += '.png'
+    # Extract and append the correct file extension from the original URL
+    if ".jpg" in url:
+        url += '.jpg'
+    elif ".png" in url:
+        url += '.png'
     return url
 
 def download_images(urls):
@@ -49,8 +49,6 @@ def download_images(urls):
         response = requests.get(url)
         response.raise_for_status()
         filename = url.split('/')[-1]
-        if not filename.endswith('.jpg'):
-            filename += '.jpg'
         images.append((filename, response.content))
     return images
 
@@ -83,6 +81,7 @@ def main():
             
             images = download_images(urls_to_download)
             
+            # Create zip file
             zip_buffer = BytesIO()
             with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
                 for filename, content in images:
