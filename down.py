@@ -13,7 +13,7 @@ LIMIT = 500
 @st.cache_data(ttl=3200)
 def fetch_posts(user_id, limit, offset):
     url = BASE_URL.format(user_id=user_id)
-    params = {"offset": offset, "limit": limit, "width": 2688, "include_nsfw": "true"}
+    params = {"offset": offset, "limit": limit, "width": 600, "include_nsfw": "true"}
     response = requests.get(url, params=params)
     response.raise_for_status()
     return response.json()
