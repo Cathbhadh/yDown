@@ -6,7 +6,6 @@ import zipfile
 import os
 from io import BytesIO
 
-# Constants
 BASE_URL = 'https://api.yodayo.com/v1/users/{user_id}/posts'
 LIMIT = 500
 
@@ -33,10 +32,11 @@ def filter_posts_by_date(posts, start_date, end_date):
     return filtered_posts
 
 def clean_url(url):
-    # Remove everything after the last underscore before the extension
     if "_" in url:
-        url = url[:url.rfind('_')]
-    # Append the correct file extension
+        if ".png" in url:
+            url = url[:url.rfind('_')] + ".png"
+        else:
+            url = url[:url.rfind('_')]
     if not url.endswith('.jpg') and not url.endswith('.png'):
         if ".jpg" in url:
             url += '.jpg'
@@ -84,7 +84,6 @@ def main():
             
             images = download_images(urls_to_download)
             
-            # Create zip file
             zip_buffer = BytesIO()
             with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
                 for filename, content in images:
