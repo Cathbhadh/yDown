@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-from urllib.parse import urlparse, urlunparse, parse_qs
 from datetime import datetime
 import zipfile
 import os
@@ -10,14 +9,13 @@ import time
 BASE_URL = "https://api.yodayo.com/v1/users/{user_id}/posts"
 LIMIT = 500
 
-
+@st.cache_data(ttl=3200)
 def fetch_posts(user_id, limit, offset):
     url = BASE_URL.format(user_id=user_id)
     params = {"offset": offset, "limit": limit, "width": 600, "include_nsfw": "true"}
     response = requests.get(url, params=params)
     response.raise_for_status()
     return response.json()
-
 
 def filter_posts_by_date(posts, start_date, end_date):
     start_date = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
@@ -29,28 +27,30 @@ def filter_posts_by_date(posts, start_date, end_date):
             filtered_posts.append(post)
     return filtered_posts
 
-
+@st.cache_data(ttl=3200)
 def clean_url(url):
     original_url = url
-    if "_" in url:
-        if ".png" in url:
-            url = url[: url.rfind("_")] + ".png"
+    # Remove parameters from the URL
+    url_parts = url.split("_")
+    if len(url_parts) > 1:
+        base_url = url_parts[0]
+        extension = url.split(".")[-1]
+        if extension in ["jpg", "png"]:
+            cleaned_url = base_url + "." + extension
         else:
-            url = url[: url.rfind("_")]
-    if not url.endswith(".jpg") and not url.endswith(".png"):
-        if ".jpg" in url:
-            url += ".jpg"
-        elif ".png" in url:
-            url += ".png"
+            cleaned_url = base_url
+    else:
+        cleaned_url = url
 
     try:
-        response = requests.head(url, timeout=0.5)
+        response = requests.head(cleaned_url, timeout=0.2)
+        if response.status_code == 404:
+            return original_url
         response.raise_for_status()
     except requests.exceptions.RequestException:
         return original_url
 
-    return url
-
+    return cleaned_url
 
 def download_images(urls, progress_bar):
     images = []
@@ -59,12 +59,11 @@ def download_images(urls, progress_bar):
         response = requests.get(url)
         response.raise_for_status()
         filename = url.split("/")[-1]
-        if not filename.endswith(".jpg"):
+        if not filename.endswith(".jpg") and not filename.endswith(".png"):
             filename += ".jpg"
         images.append((filename, response.content))
         progress_bar.progress((i + 1) / total_images)
     return images
-
 
 def main():
     st.title("Yodayo Image Downloader")
@@ -128,7 +127,6 @@ def main():
                     )
         else:
             st.error("Please provide all required inputs.")
-
 
 if __name__ == "__main__":
     main()
