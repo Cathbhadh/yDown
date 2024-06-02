@@ -46,7 +46,6 @@ def clean_url(url):
         clean_url = clean_url.replace('?', '')
     return clean_url
 
-
 def download_images(urls):
     images = []
     for url in urls:
