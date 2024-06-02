@@ -10,6 +10,7 @@ import time
 BASE_URL = "https://api.yodayo.com/v1/users/{user_id}/posts"
 LIMIT = 500
 
+@st.cache_data
 def fetch_posts(user_id, limit, offset):
     url = BASE_URL.format(user_id=user_id)
     params = {"offset": offset, "limit": limit, "width": 600, "include_nsfw": "true"}
@@ -27,6 +28,7 @@ def filter_posts_by_date(posts, start_date, end_date):
             filtered_posts.append(post)
     return filtered_posts
 
+@st.cache_data
 def clean_url(url):
     original_url = url
     if "_" in url:
@@ -48,6 +50,7 @@ def clean_url(url):
 
     return url
 
+@st.cache_data
 def download_images(urls, progress_bar):
     images = []
     total_images = len(urls)
@@ -60,6 +63,15 @@ def download_images(urls, progress_bar):
         images.append((filename, response.content))
         progress_bar.progress((i + 1) / total_images)
     return images
+
+@st.cache_resource
+def create_zip(images):
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+        for filename, content in images:
+            zip_file.writestr(filename, content)
+    zip_buffer.seek(0)
+    return zip_buffer
 
 def main():
     st.title("Yodayo Image Downloader")
@@ -106,12 +118,7 @@ def main():
                 else:
                     images = download_images(urls_to_download, progress_bar)
 
-                    zip_buffer = BytesIO()
-                    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
-                        for filename, content in images:
-                            zip_file.writestr(filename, content)
-
-                    zip_buffer.seek(0)
+                    zip_buffer = create_zip(images)
                     end_time = time.time()
                     total_time = end_time - start_time
                     st.write(f"Total run time: {total_time:.2f} seconds")
