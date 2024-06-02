@@ -30,11 +30,6 @@ def filter_posts_by_date(posts, start_date, end_date):
     return filtered_posts
 
 @st.cache_data(ttl=3200)
-Got it, I understand now. Since some URLs from storage.googleapis.com might require the .png extension while others might not, we need to check both cases. Here's an updated version of the clean_url function that should handle all cases:
-pythonCopy codeimport requests
-from urllib.parse import urlparse, urlunparse
-
-@st.cache_data(ttl=3200)
 def clean_url(url):
     original_url = url
     if "_" in url:
