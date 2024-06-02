@@ -35,9 +35,12 @@ def filter_posts_by_date(posts, start_date, end_date):
 def clean_url(url):
     # Remove everything after the last underscore before the extension
     if "_" in url:
-        url = url[:url.rfind('_')]
+        if ".png" in url:
+            url = url[:url.rfind('_')] + '.png'
+        else:
+            url = url[:url.rfind('_')]
     # Extract and append the correct file extension from the original URL
-    if ".jpg" in url:
+    elif ".jpg" in url:
         url += '.jpg'
     elif ".png" in url:
         url += '.png'
