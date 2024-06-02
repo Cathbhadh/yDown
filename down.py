@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-from urllib.parse import urlparse, urlunparse, parse_qs
 from datetime import datetime
 import zipfile
 import os
@@ -13,11 +12,10 @@ LIMIT = 500
 @st.cache_data(ttl=3200)
 def fetch_posts(user_id, limit, offset):
     url = BASE_URL.format(user_id=user_id)
-    params = {"offset": offset, "limit": limit, "include_nsfw": "true"}
+    params = {"offset": offset, "limit": limit, "width": 600, "include_nsfw": "true"}
     response = requests.get(url, params=params)
     response.raise_for_status()
     return response.json()
-
 
 def filter_posts_by_date(posts, start_date, end_date):
     start_date = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
@@ -33,24 +31,20 @@ def filter_posts_by_date(posts, start_date, end_date):
 def clean_url(url):
     original_url = url
     if "_" in url:
-        if ".png" in url:
-            url = url[: url.rfind("_")] + ".png"
+        if url.endswith(".png"):
+            url = url[:url.rfind("_")] + ".png"
+        elif url.endswith(".jpg"):
+            url = url[:url.rfind("_")] + ".jpg"
         else:
-            url = url[: url.rfind("_")]
-    if not url.endswith(".jpg") and not url.endswith(".png"):
-        if ".jpg" in url:
-            url += ".jpg"
-        elif ".png" in url:
-            url += ".png"
-
+            url = url[:url.rfind("_")]
+    
     try:
-        response = requests.head(url, timeout=1)
+        response = requests.head(url, timeout=0.2)
         response.raise_for_status()
     except requests.exceptions.RequestException:
         return original_url
 
     return url
-
 
 def download_images(urls, progress_bar):
     images = []
@@ -59,12 +53,11 @@ def download_images(urls, progress_bar):
         response = requests.get(url)
         response.raise_for_status()
         filename = url.split("/")[-1]
-        if not filename.endswith(".jpg"):
+        if not filename.endswith(".jpg") and not filename.endswith(".png"):
             filename += ".jpg"
         images.append((filename, response.content))
         progress_bar.progress((i + 1) / total_images)
     return images
-
 
 def main():
     st.title("Yodayo Image Downloader")
@@ -128,7 +121,6 @@ def main():
                     )
         else:
             st.error("Please provide all required inputs.")
-
 
 if __name__ == "__main__":
     main()
